@@ -63,3 +63,80 @@ At first, the individual events didn't necessarily tell the entire story.
 The real value came from connecting the events together.
 
 That is where the investigation became interesting.
+
+# Modification🦾 
+I wanted to practice and apply what I learned during Sprint 11 about registering, adding, and deploying Wazuh agents. I selected the Atomic Red Team (ART) Workstation because it was not currently registered in Wazuh. Adding this workstation would expand the monitored environment and allow Wazuh to recognize it as an endpoint.
+The security benefit of this modification is that the ART Workstation can now be identified and monitored as part of the Wazuh environment. This will also provide a dedicated endpoint for my later Atomic Red Team experiments.
+I first identified the type of machine I was working with by opening the system information on the ART Workstation. I confirmed that the machine is running Windows Server 2022 Standard and is hosted in VMware.
+ipconfig
+This allowed me to identify the network configuration of the ART Workstation.
+The investigation provided the following information:
+![ART Workstation network configuration](extracted_images/image29.png) 
+
+Next, I moved to the Wazuh-SIEM server and ran:
+hostname -I
+This command displayed the IP addresses associated with the Wazuh server. Because multiple addresses were listed, I needed to determine which address could be reached from the ART Workstation.
+From the ART Workstation, I tested the Wazuh server addresses using ping. The address that successfully responded was:
+
+Wazuh Manager: 10.170.0.99
+The ART Workstation successfully reached 10.170.0.99, while the other addresses tested were not reachable from the ART Workstation.
+
+I learned from the Wazuh agent enrollment documentation that Wazuh uses specific TCP ports for agent communication and enrollment. Ping alone was not enough to confirm that the services required by Wazuh were reachable.
+I used PowerShell to test the required ports:
+Test-NetConnection 10.170.0.99 -Port 1514
+The result was:
+
+I then tested the enrollment port:
+Test-NetConnection 10.170.0.99 -Port 1515
+The result was also:
+
+
+
+                                So far i have  ART VM - TCP 1514 -  Wazuh Manager 
+
+Before installing the agent, I checked the Wazuh Manager version to make sure I used the appropriate agent version.
+On the Wazuh-SIEM server, I ran:
+
+This confirmed that the Wazuh Manager was running version 4.11.0.
+I also checked the currently registered agents using:
+
+This confirmed that the ART Workstation was not already registered with the Wazuh Manager.
+
+I then opened the Wazuh Dashboard and navigated to:
+Agent Management  - Summary  - Deploy New Agent
+I selected the Windows operating system, entered the Wazuh Manager address, and assigned the agent the name:
+ARTWorkstation
+The Wazuh Dashboard then provided the PowerShell installation command for the Windows agent.
+
+During the first attempt, I mistakenly ran the Windows installation command on the Linux-based Wazuh-SIEM server. This resulted in command-not-found errors because the installation command was intended to be executed in Windows PowerShell.
+
+After identifying the mistake, I returned to the ART Workstation and ran the installation command in PowerShell on the correct Windows machine.
+
+After installing the Wazuh agent on the ART Workstation, I started the Wazuh service using:
+Start-Service WazuhSvc
+I then verified the service status with:
+Get-Service WazuhSvc
+The service reported a Running status, confirming that the Wazuh agent was active on the ART Workstation.
+
+
+Finally, I returned to the Wazuh Dashboard and refreshed the agent list.
+The ART Workstation appeared as:
+
+This confirmed that the ART Workstation was successfully enrolled in the Wazuh environment and was now part of the monitored endpoints.
+The expected outcome of this modification was that the ART Workstation would successfully enroll with the Wazuh Manager and appear as an actively monitored endpoint. The endpoint should remain connected to the Wazuh Manager and be available within the Wazuh Dashboard for future monitoring and investigation.
+The modification is considered successful when:
+The ART Workstation can communicate with the Wazuh Manager.
+TCP ports 1514 and 1515 are reachable from the ART Workstation.
+The Wazuh agent installs successfully on the ART Workstation.
+The ART Workstation successfully enrolls with the Wazuh Manager.
+The endpoint appears in the Wazuh Dashboard as ARTWorkstation.
+The Wazuh agent reports an Active status.
+
+References to use while implementing
+Wazuh agent - Installation guide · Wazuh documentation 
+Deploying Wazuh agents on Windows endpoints - Wazuh agent 
+How to Find Your IP Address From CMD (Command Prompt) 
+How to Find IP Address in Linux Command Line 
+
+
+
